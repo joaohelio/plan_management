@@ -1,0 +1,5 @@
+version: "3.9"
+services:
+  plan_management:
+    environment:
+      RACK_ENV: test

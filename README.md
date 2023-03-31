@@ -1,20 +1,57 @@
-## Background
-Migrate the plan management from a legacy system to an external service
+## run application
+`alias dc-dev="docker-compose -f docker-compose.yml"`
+`dc-dev up plan_management`
+
+## run tests
+`alias dc-test="docker-compose -f docker-compose.yml -f docker-compose.test.yml"`
+`dc-test run plan_management rspec`
 
 ## Use Case
-plans table has an association with
-`user_plans table` and we want to migrate the `plan management`
-to a microservice in order to have more flexibility to scale the application
+As a product manager, I identified the need to expand our plan management capabilities into a comprehensive plan management system. By doing so, we could offer a wider range of plan features and better cater to the needs of our customers.
 
-## Proposal solution:
-1. Separate the domain from the Rails Framework
-2. Decouple the Plan Entity from the Rails model
-3. Create a repository for the current plan model
-4. Create a repository for the external service
-5. Gradually switch the traffic to the new service using Flipper.
+## Proposal solution
+Refactoring of the PlansController class into a module called PlanManagement, which exposes a set of methods that interact with the application's business logic through a set of Interactors.
 
-## V1
-Monolith application
+The PlanManagement module provides five public methods:
 
-## V2
-Decoupled domain logic from the framework
+- `find`: retrieves a plan with a specific ID
+- `all`: retrieves all plans
+- `create`: creates a new plan
+- `update`: updates a plan with a specific ID and parameters
+- `delete`: deletes a plan with a specific ID
+
+These methods interact with the business logic through `Interactors` that encapsulate the required logic. Each Interactor is initialized with a plan_repo, which is responsible for interacting with the data storage layer.
+
+The plan_repo method dynamically returns either a `JalebiRepository::Plan` or `ActiveRecord::PlanRepository` object based on whether the :plan_management feature is enabled or not, using the Flipper feature flagging library.
+
+Overall, this change separates concerns and increases modularity by abstracting the application's business logic behind a set of Interactors, and makes the code more testable and extensible by decoupling it from the `Sinatra::Base` web framework.
+
+## Previous implementation on controller
+```ruby
+class PlansController < Sinatra::Base
+  get "/plans" do
+    Plan.all
+  end
+
+  get "/plans/:id" do
+    Plan.find(params[:id])
+  end
+
+  post "/plans" do
+    @plan = Plan.new(params)
+
+    @plan.save
+  end
+
+  put "/plans/:id" do
+    @plan = Plan.find(params[:id])
+
+    @plan.update(params)
+  end
+
+  delete "/plans/:id" do
+    @plan = Plan.find(params[:id])
+    @plan.destroy
+  end
+end
+```
